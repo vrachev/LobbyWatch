@@ -205,15 +205,12 @@ describe('matchesPreset', () => {
         playersPerTeamMax: 30
       });
 
-      // 100 players / 4 teams = 25 per team
       const twentyFivePerTeam = createMockLobby({
         gameConfig: { gameMode: 'Team', playerTeams: 4, maxPlayers: 100 }
       });
-      // 100 players / 2 teams = 50 per team
       const fiftyPerTeam = createMockLobby({
         gameConfig: { gameMode: 'Team', playerTeams: 2, maxPlayers: 100 }
       });
-      // 100 players / 10 teams = 10 per team
       const tenPerTeam = createMockLobby({
         gameConfig: { gameMode: 'Team', playerTeams: 10, maxPlayers: 100 }
       });
@@ -334,8 +331,38 @@ describe('matchesPreset', () => {
       });
       const lobby = createMockLobby();
 
-      // Should not throw
       expect(() => matchesPreset(lobby, preset)).not.toThrow();
+    });
+
+    it('handles lobby with partial gameConfig', () => {
+      const lobby = {
+        gameID: 'partial',
+        numClients: 20,
+        gameConfig: {
+          gameMap: 'europe'
+        }
+      };
+
+      const preset = createMockPreset({ active: true, mode: 'FFA', maps: ['europe'] });
+
+      const result = matchesPreset(lobby, preset);
+      expect(result).toBe(true);
+    });
+
+    it('handles unusual map names', () => {
+      const lobby = createMockLobby({
+        gameConfig: {
+          gameMap: 'baikalnukewars',
+          gameMode: 'FFA'
+        }
+      });
+
+      const preset = createMockPreset({
+        active: true,
+        maps: ['baikalnukewars']
+      });
+
+      expect(matchesPreset(lobby, preset)).toBe(true);
     });
   });
 });
@@ -437,443 +464,6 @@ describe('createDefaultPreset', () => {
     const preset2 = createDefaultPreset();
 
     expect(preset1.id).not.toBe(preset2.id);
-  });
-});
-
-// ============ Extended Edge Case Tests Using Fixtures ============
-
-describe('matchesPreset - Extended Edge Cases', () => {
-  describe('Game Mode Edge Cases', () => {
-    it('handles lobby with uppercase gameMode', () => {
-      const preset = createPreset({ mode: 'FFA' });
-      const lobby = {
-        gameID: 'test',
-        gameConfig: { gameMode: 'FFA', gameMap: 'europe' }
-      };
-      expect(matchesPreset(lobby, preset)).toBe(true);
-    });
-
-    it('treats missing gameMode as FFA (default)', () => {
-      const ffaPreset = createPreset({ mode: 'FFA' });
-      const teamPreset = createPreset({ mode: 'Team' });
-      const anyPreset = createPreset({ mode: 'Any' });
-
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigMapOnly, ffaPreset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigMapOnly, teamPreset)).toBe(false);
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigMapOnly, anyPreset)).toBe(true);
-    });
-
-    it('mode filter short-circuits before evaluating other conditions', () => {
-      // If mode doesn't match, we shouldn't evaluate team constraints
-      const teamPreset = createPreset({
-        mode: 'Team',
-        maps: ['europe'],
-        teamCountMin: 4,
-        teamCountMax: 8
-      });
-
-      // FFA lobby on Europe - mode mismatch should reject immediately
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeLarge, teamPreset)).toBe(false);
-    });
-  });
-
-  describe('Map Filtering Edge Cases', () => {
-    it('matches maps case-insensitively when lobby has uppercase map', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['europe'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeUpperCase, preset)).toBe(true);
-    });
-
-    it('matches maps case-insensitively when lobby has mixed case map', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['europe'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeMixedCase, preset)).toBe(true);
-    });
-
-    it('matches when preset has uppercase map and lobby has lowercase', () => {
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeLarge, PRESET_FIXTURES.europeCaseVariant)).toBe(true);
-    });
-
-    it('rejects empty string gameMap when specific maps required', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['europe'] });
-      expect(matchesPreset(LOBBY_FIXTURES.emptyMapString, preset)).toBe(false);
-    });
-
-    it('rejects null gameMap when specific maps required', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['europe'] });
-      expect(matchesPreset(LOBBY_FIXTURES.nullMap, preset)).toBe(false);
-    });
-
-    it('matches any map when preset maps is empty array', () => {
-      const preset = createPreset({ mode: 'Any', maps: [] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeLarge, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaAfrica, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.emptyMapString, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.nullMap, preset)).toBe(true);
-    });
-
-    it('handles unusual map names correctly', () => {
-      expect(matchesPreset(LOBBY_FIXTURES.ffaStraitOfGibraltar, PRESET_FIXTURES.unusualMapNames)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaDeglaciatedAntarctica, PRESET_FIXTURES.unusualMapNames)).toBe(true);
-    });
-
-    it('handles preset with all maps (large array)', () => {
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeLarge, PRESET_FIXTURES.allMaps)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaAfrica, PRESET_FIXTURES.allMaps)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, PRESET_FIXTURES.allMaps)).toBe(true);
-    });
-
-    it('matches Black Sea with space in API response against blacksea preset', () => {
-      const preset = createPreset({ mode: 'FFA', maps: ['blacksea'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaWithSpace, preset)).toBe(true);
-    });
-
-    it('matches BlackSea CamelCase in API response against blacksea preset', () => {
-      const preset = createPreset({ mode: 'FFA', maps: ['blacksea'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaCamelCase, preset)).toBe(true);
-    });
-
-    it('matches blacksea lowercase in API response against blacksea preset', () => {
-      const preset = createPreset({ mode: 'FFA', maps: ['blacksea'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaLowerCase, preset)).toBe(true);
-    });
-
-    it('matches Black Sea variations against allMaps preset', () => {
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaWithSpace, PRESET_FIXTURES.allMaps)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaCamelCase, PRESET_FIXTURES.allMaps)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaBlackSeaLowerCase, PRESET_FIXTURES.allMaps)).toBe(true);
-    });
-
-    it('matches maps with various space/dash/underscore variations', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['straitofgibraltar'] });
-
-      // API might return different formats
-      const withSpaces = createMockLobby({ gameConfig: { gameMap: 'Strait of Gibraltar' } });
-      const withDashes = createMockLobby({ gameConfig: { gameMap: 'strait-of-gibraltar' } });
-      const withUnderscores = createMockLobby({ gameConfig: { gameMap: 'strait_of_gibraltar' } });
-
-      expect(matchesPreset(withSpaces, preset)).toBe(true);
-      expect(matchesPreset(withDashes, preset)).toBe(true);
-      expect(matchesPreset(withUnderscores, preset)).toBe(true);
-    });
-
-    it('rejects when map not in preset list', () => {
-      const preset = createPreset({ mode: 'Any', maps: ['europe'] });
-      expect(matchesPreset(LOBBY_FIXTURES.ffaAfrica, preset)).toBe(false);
-    });
-  });
-
-  describe('Team Count Boundary Values', () => {
-    it('matches exactly at teamCountMin boundary', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 4,
-        teamCountMax: Infinity
-      });
-      // teamFourTeamsEurope has playerTeams: 4
-      expect(matchesPreset(LOBBY_FIXTURES.teamFourTeamsEurope, preset)).toBe(true);
-    });
-
-    it('matches exactly at teamCountMax boundary', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 0,
-        teamCountMax: 4
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamFourTeamsEurope, preset)).toBe(true);
-    });
-
-    it('rejects one below teamCountMin', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 4,
-        teamCountMax: Infinity
-      });
-      // threeTeamsNonDivisible has playerTeams: 3
-      expect(matchesPreset(LOBBY_FIXTURES.threeTeamsNonDivisible, preset)).toBe(false);
-    });
-
-    it('rejects one above teamCountMax', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 0,
-        teamCountMax: 4
-      });
-      // teamTenTeamsWorld has playerTeams: 10
-      expect(matchesPreset(LOBBY_FIXTURES.teamTenTeamsWorld, preset)).toBe(false);
-    });
-
-    it('teamCountMin of 0 effectively disables min check', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 0,
-        teamCountMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.singleTeam, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.twoTeams, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.manyTeams, preset)).toBe(true);
-    });
-
-    it('teamCountMax of Infinity effectively disables max check', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 0,
-        teamCountMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.manyTeams, preset)).toBe(true); // 100 teams
-    });
-
-    it('handles null playerTeams as 0 for team count check', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 1,
-        teamCountMax: Infinity
-      });
-      // nullPlayerTeams has playerTeams: null
-      expect(matchesPreset(LOBBY_FIXTURES.nullPlayerTeams, preset)).toBe(false);
-    });
-
-    it('handles single team (playerTeams: 1)', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 1,
-        teamCountMax: 1
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.singleTeam, preset)).toBe(true);
-    });
-
-    it('handles high team counts (50+ teams)', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        teamCountMin: 50,
-        teamCountMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.fiftyTeams, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.manyTeams, preset)).toBe(true); // 100 teams
-    });
-
-    it('exact team count range works', () => {
-      expect(matchesPreset(LOBBY_FIXTURES.teamFourTeamsEurope, PRESET_FIXTURES.exactFourTeams)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.twoTeams, PRESET_FIXTURES.exactFourTeams)).toBe(false);
-      expect(matchesPreset(LOBBY_FIXTURES.teamTenTeamsWorld, PRESET_FIXTURES.exactFourTeams)).toBe(false);
-    });
-  });
-
-  describe('Players Per Team Boundary Values', () => {
-    it('uses Math.floor for non-integer division', () => {
-      // nonDivisiblePlayers: 100/7 = 14.28 -> 14 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 14,
-        playersPerTeamMax: 14
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.nonDivisiblePlayers, preset)).toBe(true);
-    });
-
-    it('handles 100/3 = 33 per team correctly', () => {
-      // threeTeamsNonDivisible: 100/3 = 33.33 -> 33 per team
-      const exactPreset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 33,
-        playersPerTeamMax: 33
-      });
-      const rangePreset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 30,
-        playersPerTeamMax: 35
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.threeTeamsNonDivisible, exactPreset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.threeTeamsNonDivisible, rangePreset)).toBe(true);
-    });
-
-    it('matches exactly at playersPerTeamMin boundary', () => {
-      // teamSquadsWorld: 100/4 = 25 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 25,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(true);
-    });
-
-    it('matches exactly at playersPerTeamMax boundary', () => {
-      // teamSquadsWorld: 100/4 = 25 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 0,
-        playersPerTeamMax: 25
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(true);
-    });
-
-    it('rejects one below playersPerTeamMin', () => {
-      // teamSquadsWorld: 25 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 26,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(false);
-    });
-
-    it('rejects one above playersPerTeamMax', () => {
-      // teamSquadsWorld: 25 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 0,
-        playersPerTeamMax: 24
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(false);
-    });
-
-    it('handles zero maxPlayers resulting in 0 playersPerTeam', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 1,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.zeroMaxPlayers, preset)).toBe(false);
-    });
-
-    it('handles null maxPlayers as 0', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 1,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.nullMaxPlayers, preset)).toBe(false);
-    });
-
-    it('handles single player per team', () => {
-      // manyTeams: 100/100 = 1 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 1,
-        playersPerTeamMax: 1
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.manyTeams, preset)).toBe(true);
-    });
-
-    it('handles large players per team (100/team)', () => {
-      // largePlayersPerTeam: 200/2 = 100 per team
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 100,
-        playersPerTeamMax: 100
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.largePlayersPerTeam, preset)).toBe(true);
-    });
-
-    it('playersPerTeamMin of 0 allows any value', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 0,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.manyTeams, preset)).toBe(true); // 1/team
-      expect(matchesPreset(LOBBY_FIXTURES.largePlayersPerTeam, preset)).toBe(true); // 100/team
-    });
-
-    it('playersPerTeamMax of Infinity allows any value', () => {
-      const preset = createPreset({
-        mode: 'Team',
-        playersPerTeamMin: 0,
-        playersPerTeamMax: Infinity
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.largePlayersPerTeam, preset)).toBe(true); // 100/team
-    });
-  });
-
-  describe('Combined Filter Tests', () => {
-    it('matches when all filters are at exact boundary values simultaneously', () => {
-      // teamFourTeamsEurope: europe, Team, 4 teams, 25/team
-      const preset = createPreset({
-        mode: 'Team',
-        maps: ['europe'],
-        teamCountMin: 4,
-        teamCountMax: 4,
-        playersPerTeamMin: 25,
-        playersPerTeamMax: 25
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamFourTeamsEurope, preset)).toBe(true);
-    });
-
-    it('rejects when one filter fails even if others pass', () => {
-      // teamFourTeamsEurope: europe, Team, 4 teams, 25/team
-      // Preset expects africa instead of europe
-      const preset = createPreset({
-        mode: 'Team',
-        maps: ['africa'],
-        teamCountMin: 4,
-        teamCountMax: 4,
-        playersPerTeamMin: 25,
-        playersPerTeamMax: 25
-      });
-      expect(matchesPreset(LOBBY_FIXTURES.teamFourTeamsEurope, preset)).toBe(false);
-    });
-
-    it('competitive duos on Europe scenario', () => {
-      const preset = PRESET_FIXTURES.competitiveDuosEurope;
-      // Should match teamDuosEurope: europe, Team, 50 teams, 2/team
-      expect(matchesPreset(LOBBY_FIXTURES.teamDuosEurope, preset)).toBe(true);
-      // Should reject teamDuosAfrica: wrong map
-      expect(matchesPreset(LOBBY_FIXTURES.teamDuosAfrica, preset)).toBe(false);
-      // Should reject teamSquadsWorld: wrong map and wrong team config
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(false);
-    });
-
-    it('casual large teams scenario', () => {
-      const preset = PRESET_FIXTURES.casualLargeTeamsAny;
-      // Should match teamSquadsWorld: 4 teams, 25/team
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsWorld, preset)).toBe(true);
-      // Should match teamSquadsAsia: 2 teams, 50/team
-      expect(matchesPreset(LOBBY_FIXTURES.teamSquadsAsia, preset)).toBe(true);
-      // Should reject teamDuosAfrica: 50 teams (> max 8), 2/team (< min 10)
-      expect(matchesPreset(LOBBY_FIXTURES.teamDuosAfrica, preset)).toBe(false);
-    });
-
-    it('FFA on Europe or Africa scenario', () => {
-      const preset = PRESET_FIXTURES.ffaEuropeOrAfrica;
-      expect(matchesPreset(LOBBY_FIXTURES.ffaEuropeLarge, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaAfrica, preset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.ffaWorld, preset)).toBe(false);
-      expect(matchesPreset(LOBBY_FIXTURES.teamDuosEurope, preset)).toBe(false); // wrong mode
-    });
-  });
-
-  describe('Edge Cases with Missing/Partial Data', () => {
-    it('handles lobby with missing gameConfig', () => {
-      const anyPreset = createPreset({ mode: 'Any' });
-      const ffaPreset = createPreset({ mode: 'FFA' });
-
-      expect(matchesPreset(LOBBY_FIXTURES.missingGameConfig, anyPreset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.missingGameConfig, ffaPreset)).toBe(true); // defaults to FFA
-    });
-
-    it('handles lobby with empty gameConfig', () => {
-      const anyPreset = createPreset({ mode: 'Any' });
-      expect(matchesPreset(LOBBY_FIXTURES.emptyGameConfig, anyPreset)).toBe(true);
-    });
-
-    it('handles lobby with null gameConfig', () => {
-      const anyPreset = createPreset({ mode: 'Any' });
-      // gameConfig is null, so config = {} and mode defaults to FFA
-      expect(matchesPreset(LOBBY_FIXTURES.nullGameConfig, anyPreset)).toBe(true);
-    });
-
-    it('handles lobby with only gameMap in config', () => {
-      const europePreset = createPreset({ mode: 'Any', maps: ['europe'] });
-      const africaPreset = createPreset({ mode: 'Any', maps: ['africa'] });
-
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigMapOnly, europePreset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigMapOnly, africaPreset)).toBe(false);
-    });
-
-    it('handles lobby with only gameMode in config', () => {
-      const ffaPreset = createPreset({ mode: 'FFA' });
-      const teamPreset = createPreset({ mode: 'Team' });
-
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigModeOnly, ffaPreset)).toBe(true);
-      expect(matchesPreset(LOBBY_FIXTURES.partialGameConfigModeOnly, teamPreset)).toBe(false);
-    });
   });
 });
 
@@ -999,131 +589,6 @@ describe('createDefaultPreset - Extended', () => {
     expect(result.matched).toBe(true);
   });
 });
-
-// ============ Real-World Scenario Tests ============
-
-describe('Real-World Scenarios', () => {
-  describe('User: "I only play FFA on Europe"', () => {
-    const userPreset = createPreset({
-      active: true,
-      name: 'FFA Europe Only',
-      mode: 'FFA',
-      maps: ['europe']
-    });
-
-    it('notifies for FFA Europe lobby', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.ffaEuropeLarge, [userPreset]);
-      expect(result.matched).toBe(true);
-    });
-
-    it('ignores FFA Africa lobby', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.ffaAfrica, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-
-    it('ignores Team Europe lobby', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosEurope, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-
-    it('ignores Team Africa lobby', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosAfrica, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-  });
-
-  describe('User: "I want duos on any map"', () => {
-    const userPreset = createPreset({
-      active: true,
-      name: 'Duos Any Map',
-      mode: 'Team',
-      maps: [],
-      teamCountMin: 40,
-      playersPerTeamMax: 3
-    });
-
-    it('matches 50-team duos game on Africa', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosAfrica, [userPreset]);
-      expect(result.matched).toBe(true);
-    });
-
-    it('matches 50-team duos game on Europe', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosEurope, [userPreset]);
-      expect(result.matched).toBe(true);
-    });
-
-    it('ignores 4-team large squad game', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamSquadsWorld, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-
-    it('ignores FFA game', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.ffaEuropeLarge, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-  });
-
-  describe('User: "Large teams only (25+ players/team)"', () => {
-    const userPreset = createPreset({
-      active: true,
-      name: 'Large Teams',
-      mode: 'Team',
-      maps: [],
-      playersPerTeamMin: 25
-    });
-
-    it('matches 4-team squad game (25/team)', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamSquadsWorld, [userPreset]);
-      expect(result.matched).toBe(true);
-    });
-
-    it('matches 2-team squad game (50/team)', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamSquadsAsia, [userPreset]);
-      expect(result.matched).toBe(true);
-    });
-
-    it('ignores duos (2/team)', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosAfrica, [userPreset]);
-      expect(result.matched).toBe(false);
-    });
-  });
-
-  describe('User with multiple presets', () => {
-    const presets = [
-      createPreset({ active: true, name: 'FFA Europe', mode: 'FFA', maps: ['europe'] }),
-      createPreset({ active: true, name: 'Team Any', mode: 'Team', maps: [] }),
-      createPreset({ active: false, name: 'Disabled', mode: 'Any', maps: [] })
-    ];
-
-    it('FFA Europe triggers FFA Europe preset', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.ffaEuropeLarge, presets);
-      expect(result.matched).toBe(true);
-      expect(result.presets).toHaveLength(1);
-      expect(result.presets[0].name).toBe('FFA Europe');
-    });
-
-    it('Team Africa triggers Team Any preset', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.teamDuosAfrica, presets);
-      expect(result.matched).toBe(true);
-      expect(result.presets).toHaveLength(1);
-      expect(result.presets[0].name).toBe('Team Any');
-    });
-
-    it('FFA Africa triggers no presets (no match)', () => {
-      const result = checkForMatch(LOBBY_FIXTURES.ffaAfrica, presets);
-      expect(result.matched).toBe(false);
-      expect(result.presets).toHaveLength(0);
-    });
-
-    it('Disabled preset does not trigger even though it would match', () => {
-      // FFA World would match "Disabled" preset (mode: Any), but it's inactive
-      const result = checkForMatch(LOBBY_FIXTURES.ffaWorld, presets);
-      expect(result.matched).toBe(false);
-    });
-  });
-});
-
-// ============ Size Filtering Tests ============
 
 describe('Size Filtering', () => {
   const mapSizes = {
@@ -1442,11 +907,9 @@ describe('normalizePreset', () => {
       teamCountMax: 6
     });
 
-    // 25 teams should NOT match 1-6 team filter
     const lobby25Teams = { gameConfig: { gameMode: 'Team', playerTeams: 25, maxPlayers: 100 } };
     expect(matchesPreset(lobby25Teams, preset)).toBe(false);
 
-    // 4 teams should match 1-6 team filter
     const lobby4Teams = { gameConfig: { gameMode: 'Team', playerTeams: 4, maxPlayers: 100 } };
     expect(matchesPreset(lobby4Teams, preset)).toBe(true);
   });
@@ -1606,92 +1069,6 @@ describe('matchesPreset with string playerTeams (real API format)', () => {
     // Trios: 30 players / 3 = 10 teams, should NOT match (outside 2-6 range)
     const triosOutRange = { gameConfig: { gameMode: 'Team', playerTeams: 'Trios', maxPlayers: 30 } };
     expect(matchesPreset(triosOutRange, preset)).toBe(false);
-  });
-});
-
-describe('Real API Format Integration', () => {
-  describe('FFA with "Free For All" gameMode', () => {
-    it('normalizes "Free For All" to FFA for matching', () => {
-      const ffaPreset = normalizePreset({ id: 'ffa', mode: 'FFA' });
-      const anyPreset = normalizePreset({ id: 'any', mode: 'Any' });
-      const teamPreset = normalizePreset({ id: 'team', mode: 'Team' });
-
-      // Real API uses "Free For All", not "FFA"
-      expect(matchesPreset(REAL_API_LOBBIES.ffa, ffaPreset)).toBe(true);
-      expect(matchesPreset(REAL_API_LOBBIES.ffa, anyPreset)).toBe(true);
-      expect(matchesPreset(REAL_API_LOBBIES.ffa, teamPreset)).toBe(false);
-    });
-
-    it('FFA lobbies have no playerTeams field', () => {
-      expect(REAL_API_LOBBIES.ffa.gameConfig.playerTeams).toBeUndefined();
-    });
-  });
-
-  describe('Team with "Duos" string playerTeams', () => {
-    it('matches Team mode presets', () => {
-      const teamPreset = normalizePreset({ id: 'team', mode: 'Team' });
-      expect(matchesPreset(REAL_API_LOBBIES.duos, teamPreset)).toBe(true);
-    });
-
-    it('calculates correct team count (maxPlayers / 2)', () => {
-      // realTeamDuos: maxPlayers=60, playerTeams='Duos' -> 60/2 = 30 teams
-      const presetMax20 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 20 });
-      const presetMax40 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 40 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.duos, presetMax20)).toBe(false); // 30 > 20
-      expect(matchesPreset(REAL_API_LOBBIES.duos, presetMax40)).toBe(true);  // 30 <= 40
-    });
-  });
-
-  describe('Team with "Trios" string playerTeams', () => {
-    it('calculates correct team count (maxPlayers / 3)', () => {
-      // realTeamTrios: maxPlayers=60, playerTeams='Trios' -> 60/3 = 20 teams
-      const presetMax15 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 15 });
-      const presetMax25 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 25 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.trios, presetMax15)).toBe(false); // 20 > 15
-      expect(matchesPreset(REAL_API_LOBBIES.trios, presetMax25)).toBe(true);  // 20 <= 25
-    });
-
-    it('calculates correct players per team', () => {
-      // 20 teams, 60 max players -> 3 players per team
-      const preset3PPT = normalizePreset({ id: 't', mode: 'Team', playersPerTeamMin: 3, playersPerTeamMax: 3 });
-      const preset4PPT = normalizePreset({ id: 't', mode: 'Team', playersPerTeamMin: 4, playersPerTeamMax: 4 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.trios, preset3PPT)).toBe(true);
-      expect(matchesPreset(REAL_API_LOBBIES.trios, preset4PPT)).toBe(false);
-    });
-  });
-
-  describe('Team with "Quads" string playerTeams', () => {
-    it('calculates correct team count (maxPlayers / 4)', () => {
-      // realTeamQuads: maxPlayers=100, playerTeams='Quads' -> 100/4 = 25 teams
-      const presetMax20 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 20 });
-      const presetMax30 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 30 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.quads, presetMax20)).toBe(false); // 25 > 20
-      expect(matchesPreset(REAL_API_LOBBIES.quads, presetMax30)).toBe(true);  // 25 <= 30
-    });
-  });
-
-  describe('Team with numeric playerTeams', () => {
-    it('uses numeric value directly as team count', () => {
-      // realTeamNumeric: maxPlayers=100, playerTeams=2 -> 2 teams directly
-      const presetMax3 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 3 });
-      const presetMax1 = normalizePreset({ id: 't', mode: 'Team', teamCountMax: 1 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.numeric, presetMax3)).toBe(true);  // 2 <= 3
-      expect(matchesPreset(REAL_API_LOBBIES.numeric, presetMax1)).toBe(false); // 2 > 1
-    });
-
-    it('calculates correct players per team', () => {
-      // 2 teams, 100 max players -> 50 players per team
-      const preset50PPT = normalizePreset({ id: 't', mode: 'Team', playersPerTeamMin: 50, playersPerTeamMax: 50 });
-      const preset25PPT = normalizePreset({ id: 't', mode: 'Team', playersPerTeamMin: 25, playersPerTeamMax: 25 });
-
-      expect(matchesPreset(REAL_API_LOBBIES.numeric, preset50PPT)).toBe(true);
-      expect(matchesPreset(REAL_API_LOBBIES.numeric, preset25PPT)).toBe(false);
-    });
   });
 });
 

@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '../src/notifications.js';
 const { shouldDismissNotification, getGamesToDismiss } = globalThis.OFP_NOTIFICATIONS;
 
-const NOTIFICATION_TIMEOUT_MS = 60000; // 60 seconds
+const NOTIFICATION_TIMEOUT_MS = 60000;
 
 describe('Notification Dismissal', () => {
   describe('shouldDismissNotification', () => {
     it('dismisses when notification has timed out', () => {
       const now = Date.now();
-      const createdAt = now - 61000; // 61 seconds ago
+      const createdAt = now - 61000;
 
       const result = shouldDismissNotification({
         createdAt,
@@ -23,7 +23,7 @@ describe('Notification Dismissal', () => {
 
     it('does not dismiss before timeout', () => {
       const now = Date.now();
-      const createdAt = now - 59000; // 59 seconds ago
+      const createdAt = now - 59000;
 
       const result = shouldDismissNotification({
         createdAt,
@@ -149,7 +149,7 @@ describe('Notification Dismissal', () => {
 
     it('prioritizes timeout over other dismissal reasons', () => {
       const now = Date.now();
-      const createdAt = now - 70000; // 70 seconds ago
+      const createdAt = now - 70000;
 
       // Lobby that would trigger multiple dismiss reasons
       const result = shouldDismissNotification({

@@ -1,7 +1,5 @@
-// Test setup - mock Chrome APIs and global objects
 import { vi } from 'vitest';
 
-// Mock chrome.storage
 globalThis.chrome = {
   storage: {
     sync: {
@@ -20,10 +18,8 @@ globalThis.chrome = {
   },
 };
 
-// Mock fetch for API calls
 globalThis.fetch = vi.fn();
 
-// Helper to create mock lobby data
 globalThis.createMockLobby = (overrides = {}) => ({
   gameID: 'test-game-123',
   numClients: 50,
@@ -38,7 +34,6 @@ globalThis.createMockLobby = (overrides = {}) => ({
   ...overrides,
 });
 
-// Helper to create mock preset
 globalThis.createMockPreset = (overrides = {}) => ({
   id: 'preset-' + Math.random().toString(36).slice(2, 6),
   name: 'Test Preset',
@@ -53,7 +48,6 @@ globalThis.createMockPreset = (overrides = {}) => ({
   ...overrides,
 });
 
-// Mock API response helper
 globalThis.mockApiResponse = (lobbies) => {
   globalThis.fetch.mockResolvedValueOnce({
     ok: true,
@@ -61,7 +55,6 @@ globalThis.mockApiResponse = (lobbies) => {
   });
 };
 
-// Mock API error helper
 globalThis.mockApiError = (status = 500) => {
   globalThis.fetch.mockResolvedValueOnce({
     ok: false,
@@ -69,7 +62,6 @@ globalThis.mockApiError = (status = 500) => {
   });
 };
 
-// Helper to create lobby with deep overrides
 globalThis.createLobbyWithOverrides = (base, overrides) => {
   return {
     ...base,
@@ -81,7 +73,6 @@ globalThis.createLobbyWithOverrides = (base, overrides) => {
   };
 };
 
-// Helper to generate multiple team lobbies for bulk testing
 globalThis.generateTeamLobbies = (count) => {
   const maps = ['europe', 'africa', 'asia', 'world', 'northamerica'];
   const teamConfigs = [2, 4, 10, 25, 50];
@@ -99,7 +90,6 @@ globalThis.generateTeamLobbies = (count) => {
   }));
 };
 
-// Helper to generate multiple FFA lobbies for bulk testing
 globalThis.generateFFALobbies = (count) => {
   const maps = ['europe', 'africa', 'asia', 'world', 'northamerica'];
 
