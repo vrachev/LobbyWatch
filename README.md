@@ -4,13 +4,16 @@ A Chrome extension that monitors openfront.io for games matching your criteria a
 
 ## Screenshots
 
-![LobbyWatch Panel](images/panel.png)
+<img src="images/panel.jpg" width="600" alt="LobbyWatch Panel">
+
 *The LobbyWatch panel showing current game info and preset filters*
 
-![Notification](images/notification.png)
+<img src="images/notification.jpg" width="600" alt="Notification">
+
 *Desktop notification when a matching game is found*
 
-![Preset Editor](images/preset-editor.png)
+<img src="images/preset-editor.jpg" width="600" alt="Preset Editor">
+
 *The preset editor for configuring game filters*
 
 ## Installation
