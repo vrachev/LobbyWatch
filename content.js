@@ -1910,10 +1910,11 @@
   }
 
   function toggleMonitoring() {
-    isMonitoring = !isMonitoring;
-    updateMonitoringUI();
-
     if (isMonitoring) {
+      stopMonitoring();
+    } else {
+      isMonitoring = true;
+      updateMonitoringUI();
       startPolling();
       chrome.runtime.sendMessage({
         type: 'START_MONITORING',
@@ -1921,12 +1922,8 @@
         mapSizes: mapSizes,
         autoJoin: autoJoinEnabled
       }).catch(err => console.error('[OFP] Failed to start background monitoring:', err));
-    } else {
-      lastMatchedGameId = null;
-      dismissAllNotifications();
+      chrome.storage.local.set({ ofp_monitoring: true });
     }
-
-    chrome.storage.local.set({ ofp_monitoring: isMonitoring });
   }
 
   function toggleAutoJoin() {
