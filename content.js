@@ -10,12 +10,10 @@
   let presets = [];
   let editingPreset = null;
   let lastMatchedGameId = null;
-  let notifiedGameIds = new Map();
   let shadowRoot = null;
   let autoJoinEnabled = false;
 
   const POLL_INTERVAL = 2000;
-  const NOTIFICATION_TIMEOUT_MS = 60000;
   const MAX_Z_INDEX = 2147483647;
   const API_ENDPOINT = '/api/public_lobbies';
   const STORAGE_KEY = 'ofp_presets';
@@ -1300,22 +1298,6 @@
     }
   }
 
-
-  async function requestNotificationPermission() {
-    if (!('Notification' in window)) return false;
-
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-
-    if (Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-
-    return false;
-  }
-
   async function joinLobby(gameID) {
     await chrome.runtime.sendMessage({ type: 'FOCUS_TAB' });
     const lobbyCard = findLobbyCard();
@@ -1360,79 +1342,6 @@
     }
   }
 
-  async function sendNotification(lobby, matchingPresets) {
-    const config = lobby.gameConfig || {};
-    const presetNames = matchingPresets.map(p => p.name).join(', ');
-    const mapName = formatMapName(config.gameMap);
-    const gameMode = config.gameMode || 'FFA';
-    const playerCount = lobby.numClients || 0;
-    const maxPlayers = config.maxPlayers || 0;
-    const teamCount = parseTeamCount(config.playerTeams, maxPlayers);
-
-    let body = `${gameMode} - ${playerCount}/${maxPlayers} players`;
-    if (teamCount > 0) {
-      body += ` (${teamCount} teams)`;
-    }
-
-    // Try Web Notifications API (works better on macOS)
-    if ('Notification' in window) {
-      if (Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
-
-      if (Notification.permission === 'granted') {
-        try {
-          const notification = new Notification(`Game Found: ${mapName}`, {
-            body: body,
-            icon: chrome.runtime.getURL('icons/icon128.png'),
-            tag: 'ofp-match', // Prevents duplicate notifications
-            requireInteraction: true
-          });
-
-          const timeoutId = setTimeout(() => {
-            notification.close();
-            notifiedGameIds.delete(lobby.gameID);
-          }, NOTIFICATION_TIMEOUT_MS);
-
-          notification.onclick = () => {
-            clearTimeout(timeoutId);
-            window.focus();
-            notification.close();
-            notifiedGameIds.delete(lobby.gameID);
-          };
-
-          notifiedGameIds.set(lobby.gameID, {
-            notification: notification,
-            timeoutId: timeoutId,
-            createdAt: Date.now()
-          });
-          return;
-        } catch (e) {
-          console.error('[OFP] Web notification failed:', e);
-        }
-      } else if (Notification.permission === 'denied') {
-        showNotificationPermissionError();
-      }
-    }
-  }
-
-  function showNotificationPermissionError() {
-    if (!shadowRoot) return;
-    const errorEl = shadowRoot.getElementById('ofp-error');
-    if (errorEl) {
-      errorEl.textContent = 'Notifications blocked. Click the lock icon in your browser address bar to enable.';
-      errorEl.classList.remove('hidden');
-      errorEl.onclick = () => {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            errorEl.classList.add('hidden');
-          }
-        });
-      };
-    }
-  }
-
-
   async function fetchLobbies() {
     try {
       const response = await fetch(API_ENDPOINT);
@@ -1446,40 +1355,6 @@
       return null;
     }
   }
-
-
-  function checkNotifiedGames(lobbies) {
-    if (notifiedGameIds.size === 0) return;
-
-    if (!window.OFP_NOTIFICATIONS) {
-      console.error('[OFP] Notifications module not loaded');
-      return;
-    }
-
-    const { getGamesToDismiss } = window.OFP_NOTIFICATIONS;
-    const toDismiss = getGamesToDismiss(notifiedGameIds, lobbies, NOTIFICATION_TIMEOUT_MS);
-
-    for (const { gameID, notificationData } of toDismiss) {
-      const { notification, timeoutId } = notificationData;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      if (notification) {
-        notification.close();
-      }
-      notifiedGameIds.delete(gameID);
-    }
-  }
-
-  function dismissAllNotifications() {
-    for (const [gameID, notificationData] of notifiedGameIds.entries()) {
-      const { notification, timeoutId } = notificationData || {};
-      if (timeoutId) clearTimeout(timeoutId);
-      if (notification) notification.close();
-    }
-    notifiedGameIds.clear();
-  }
-
 
   function updatePresetList() {
     if (!shadowRoot) return;
@@ -1847,10 +1722,6 @@
   async function poll() {
     const lobbies = await fetchLobbies();
     updateUI(lobbies);
-
-    if (lobbies) {
-      await checkNotifiedGames(lobbies);
-    }
   }
 
   function startPolling() {
@@ -2289,7 +2160,6 @@
     isMonitoring = false;
     stopPolling();
     lastMatchedGameId = null;
-    dismissAllNotifications();
     chrome.storage.local.set({ ofp_monitoring: false });
     updateMonitoringUI();
   }

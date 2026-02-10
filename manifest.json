@@ -16,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["https://openfront.io/*"],
-      "js": ["src/maps.js", "src/notifications.js", "content.js"],
+      "js": ["src/maps.js", "content.js"],
       "run_at": "document_end"
     }
   ],
