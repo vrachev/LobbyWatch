@@ -1027,6 +1027,133 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+
+    /* Permissions Modal */
+    #ofp-permissions-modal .ofp-modal-content {
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      box-shadow: 0 0 40px rgba(251, 191, 36, 0.15), 0 16px 64px rgba(0, 0, 0, 0.5);
+    }
+
+    #ofp-permissions-modal .ofp-modal-header {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, transparent 100%);
+      border-bottom-color: rgba(251, 191, 36, 0.2);
+    }
+
+    .ofp-permissions-header-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ofp-permissions-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ofp-permissions-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: #1f2937;
+    }
+
+    .ofp-permissions-body {
+      text-align: left;
+    }
+
+    .ofp-permissions-body p {
+      margin: 0 0 16px 0;
+      color: #d1d5db;
+      line-height: 1.5;
+    }
+
+    .ofp-permissions-body strong {
+      color: #f3f4f6;
+    }
+
+    .ofp-permissions-warning {
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      color: #fcd34d;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ofp-permissions-warning svg {
+      width: 20px;
+      height: 20px;
+      fill: #fbbf24;
+      flex-shrink: 0;
+    }
+
+    .ofp-permissions-body ol {
+      margin: 0;
+      padding-left: 0;
+      color: #d1d5db;
+      line-height: 1.8;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .ofp-permissions-body ol li {
+      margin-bottom: 8px;
+      padding-left: 32px;
+      position: relative;
+    }
+
+    .ofp-permissions-body ol li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 22px;
+      height: 22px;
+      background: rgba(59, 130, 246, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #60a5fa;
+    }
+
+    /* Settings (gear) button in status bar */
+    .ofp-settings-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      margin-left: auto;
+    }
+
+    .ofp-settings-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f3f4f6;
+    }
+
+    .ofp-settings-btn svg {
+      width: 16px;
+      height: 16px;
+    }
   `;
 
 
@@ -1109,6 +1236,49 @@
       if (text[i] === query[qi]) qi++;
     }
     return qi === query.length;
+  }
+
+  function getOS() {
+    const platform = navigator.platform.toLowerCase();
+    if (platform.includes('mac')) return 'macos';
+    if (platform.includes('win')) return 'windows';
+    return 'other';
+  }
+
+  function getPermissionsInstructions() {
+    const os = getOS();
+    if (os === 'macos') {
+      return `
+        <ol>
+          <li>Open <strong>System Settings</strong> (or System Preferences)</li>
+          <li>Go to <strong>Notifications</strong></li>
+          <li>Find your browser (Chrome, Firefox, etc.)</li>
+          <li>Enable <strong>Allow Notifications</strong></li>
+        </ol>
+      `;
+    } else if (os === 'windows') {
+      return `
+        <ol>
+          <li>Open <strong>Settings</strong></li>
+          <li>Go to <strong>System</strong> → <strong>Notifications</strong></li>
+          <li>Find your browser</li>
+          <li>Turn notifications <strong>On</strong></li>
+        </ol>
+      `;
+    }
+    // Fallback: show both
+    return `
+      <p><strong>macOS:</strong></p>
+      <ol>
+        <li>Open <strong>System Settings</strong> → <strong>Notifications</strong></li>
+        <li>Find your browser and enable <strong>Allow Notifications</strong></li>
+      </ol>
+      <p><strong>Windows:</strong></p>
+      <ol>
+        <li>Open <strong>Settings</strong> → <strong>System</strong> → <strong>Notifications</strong></li>
+        <li>Find your browser and turn notifications <strong>On</strong></li>
+      </ol>
+    `;
   }
 
 
@@ -1560,6 +1730,19 @@
     editingPreset = null;
   }
 
+  function showPermissionsModal() {
+    if (!shadowRoot) return;
+    shadowRoot.getElementById('ofp-permissions-modal').classList.remove('hidden');
+  }
+
+  function closePermissionsModal(markAsSeen = false) {
+    if (!shadowRoot) return;
+    shadowRoot.getElementById('ofp-permissions-modal').classList.add('hidden');
+    if (markAsSeen) {
+      chrome.storage.local.set({ ofp_permissions_shown: true });
+    }
+  }
+
   function renderMapList(searchQuery) {
     if (!shadowRoot) return;
     const container = shadowRoot.getElementById('ofp-map-list');
@@ -1901,6 +2084,11 @@
       <div class="ofp-status">
         <span class="ofp-status-dot" id="ofp-status-dot"></span>
         <span class="ofp-status-text" id="ofp-status-text">Monitoring</span>
+        <button class="ofp-settings-btn" id="ofp-settings-btn" title="Notification Settings">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
         ${isBetaFlagEnabled('autojoin') ? `
         <label class="ofp-autojoin-toggle">
           <input type="checkbox" id="ofp-autojoin-checkbox">
@@ -2023,8 +2211,40 @@
       </div>
     `;
 
+    const permissionsModal = document.createElement('div');
+    permissionsModal.id = 'ofp-permissions-modal';
+    permissionsModal.className = 'ofp-modal hidden';
+    permissionsModal.innerHTML = `
+      <div class="ofp-modal-backdrop"></div>
+      <div class="ofp-modal-content">
+        <div class="ofp-modal-header">
+          <div class="ofp-permissions-header-content">
+            <div class="ofp-permissions-icon">
+              <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            </div>
+            <span>Enable Notifications</span>
+          </div>
+          <button class="ofp-close-btn" id="ofp-permissions-close">&times;</button>
+        </div>
+        <div class="ofp-modal-body ofp-permissions-body">
+          <div class="ofp-permissions-warning">
+            <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+            <span>Without system permissions, notifications won't appear!</span>
+          </div>
+          <p>LobbyWatch needs your system's notification permissions to alert you when matching games are found.</p>
+          ${getPermissionsInstructions()}
+        </div>
+        <div class="ofp-modal-footer">
+          <div class="ofp-modal-actions" style="margin-left: auto;">
+            <button class="ofp-btn ofp-btn-primary" id="ofp-permissions-ok">Got it</button>
+          </div>
+        </div>
+      </div>
+    `;
+
     shadowRoot.appendChild(panel);
     shadowRoot.appendChild(modal);
+    shadowRoot.appendChild(permissionsModal);
     document.documentElement.appendChild(container);
 
     shadowRoot.getElementById('ofp-monitor-btn').addEventListener('click', toggleMonitoring);
@@ -2036,6 +2256,12 @@
     shadowRoot.getElementById('ofp-save-preset').addEventListener('click', savePreset);
     shadowRoot.getElementById('ofp-delete-preset').addEventListener('click', deletePreset);
     shadowRoot.querySelector('.ofp-modal-backdrop').addEventListener('click', closePresetEditor);
+
+    // Permissions modal event listeners
+    shadowRoot.getElementById('ofp-settings-btn').addEventListener('click', showPermissionsModal);
+    shadowRoot.getElementById('ofp-permissions-close').addEventListener('click', () => closePermissionsModal());
+    shadowRoot.getElementById('ofp-permissions-ok').addEventListener('click', () => closePermissionsModal(true));
+    shadowRoot.querySelector('#ofp-permissions-modal .ofp-modal-backdrop').addEventListener('click', () => closePermissionsModal());
 
     shadowRoot.getElementById('ofp-map-search').addEventListener('input', (e) => {
       renderMapList(e.target.value);
@@ -2245,6 +2471,12 @@
     updatePresetList();
     updateAutoJoinUI();
     updateMonitoringUI();
+
+    // Show permissions modal on first launch
+    const { ofp_permissions_shown } = await chrome.storage.local.get('ofp_permissions_shown');
+    if (!ofp_permissions_shown) {
+      showPermissionsModal();
+    }
 
     poll();
     startPolling();
