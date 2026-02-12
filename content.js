@@ -12,6 +12,7 @@
   let lastMatchedGameId = null;
   let shadowRoot = null;
   let autoJoinEnabled = false;
+  let joinInProgress = false;
 
   const POLL_INTERVAL = 2000;
   const MAX_Z_INDEX = 2147483647;
@@ -134,11 +135,6 @@
     };
   }
 
-  function isBetaFlagEnabled(flag) {
-    const flags = (localStorage.getItem('ofp_beta_flags') || '').split(',');
-    return flags.includes(flag);
-  }
-
   const { STATIC_MAPS, STATIC_MAP_SIZES } = window.OFP_MAPS;
   let maps = [...STATIC_MAPS];
   let mapSizes = { ...STATIC_MAP_SIZES };
@@ -153,13 +149,27 @@
   });
 
   function handleAutoJoin(gameID) {
+    if (!gameID || window.location.pathname.includes('/game/') || joinInProgress) {
+      return;
+    }
+    joinInProgress = true;
+
     const lobbyCard = findLobbyCard();
     if (lobbyCard) {
       lobbyCard.click();
-      showAutoJoinToast();
     } else {
-      window.location.hash = `#join=${gameID}`;
+      window.location.href = `/w0/game/${gameID}`;
     }
+    showAutoJoinToast();
+  }
+
+  function findLobbyCard() {
+    for (const btn of document.querySelectorAll('button')) {
+      if (btn.textContent?.includes('Join next Game')) {
+        return btn;
+      }
+    }
+    return null;
   }
 
   async function fetchMapsFromGitHub() {
@@ -309,7 +319,7 @@
     .ofp-autojoin-toggle {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       cursor: pointer;
       font-size: 11px;
       margin-left: auto;
@@ -664,15 +674,6 @@
       padding: 2px 6px;
     }
 
-    .ofp-beta-warning {
-      padding: 6px 10px;
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      font-size: 11px;
-      text-align: center;
-      border-top: 1px solid rgba(245, 158, 11, 0.2);
-    }
-
     .ofp-error {
       padding: 10px 12px;
       background: rgba(239, 68, 68, 0.1);
@@ -691,6 +692,7 @@
       border-top: 1px solid rgba(5, 150, 105, 0.2);
       animation: ofp-fade-in 0.2s ease;
     }
+
 
     @keyframes ofp-fade-in {
       from { opacity: 0; }
@@ -1142,7 +1144,7 @@
       align-items: center;
       justify-content: center;
       transition: all 0.15s ease;
-      margin-left: auto;
+      margin-left: 4px;
     }
 
     .ofp-settings-btn:hover {
@@ -1469,35 +1471,18 @@
   }
 
   async function joinLobby(gameID) {
+    if (window.location.pathname.includes('/game/') || joinInProgress) {
+      return;
+    }
+    joinInProgress = true;
     await chrome.runtime.sendMessage({ type: 'FOCUS_TAB' });
+
     const lobbyCard = findLobbyCard();
     if (lobbyCard) {
       lobbyCard.click();
-      showAutoJoinToast();
     } else {
-      window.location.hash = `#join=${gameID}`;
+      window.location.href = `/w0/game/${gameID}`;
     }
-  }
-
-  function findLobbyCard() {
-    // The lobby card is a button with h-40 class containing "Join next Game" text
-    // When clicked, it turns green (from-green-600) and queues the player to join
-    const buttons = document.querySelectorAll('button.h-40');
-    for (const btn of buttons) {
-      if (btn.textContent && btn.textContent.includes('Join next Game')) {
-        return btn;
-      }
-    }
-
-    // Fallback: find any button containing "Join next Game"
-    const allButtons = document.querySelectorAll('button');
-    for (const btn of allButtons) {
-      if (btn.textContent && btn.textContent.includes('Join next Game')) {
-        return btn;
-      }
-    }
-
-    return null;
   }
 
   function showAutoJoinToast() {
@@ -1505,10 +1490,7 @@
     const toast = shadowRoot.getElementById('ofp-autojoin-toast');
     if (toast) {
       toast.classList.remove('hidden');
-      // Auto-hide after 10 seconds (game should start by then)
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 10000);
+      setTimeout(() => toast.classList.add('hidden'), 10000);
     }
   }
 
@@ -2080,27 +2062,24 @@
         </div>
       </div>
 
-      ${isBetaFlagEnabled('autojoin') ? '<div class="ofp-beta-warning">Beta: Auto-join may be unreliable when idle</div>' : ''}
       <div class="ofp-status">
         <span class="ofp-status-dot" id="ofp-status-dot"></span>
         <span class="ofp-status-text" id="ofp-status-text">Monitoring</span>
+        <label class="ofp-autojoin-toggle" title="Toggle between notification and auto-join modes">
+          <input type="checkbox" id="ofp-autojoin-checkbox">
+          <span class="ofp-toggle-label ofp-toggle-notify">Notify</span>
+          <span class="ofp-toggle-slider"></span>
+          <span class="ofp-toggle-label ofp-toggle-autojoin">Join</span>
+        </label>
         <button class="ofp-settings-btn" id="ofp-settings-btn" title="Notification Settings">
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
           </svg>
         </button>
-        ${isBetaFlagEnabled('autojoin') ? `
-        <label class="ofp-autojoin-toggle">
-          <input type="checkbox" id="ofp-autojoin-checkbox">
-          <span class="ofp-toggle-label ofp-toggle-notify">Notify</span>
-          <span class="ofp-toggle-slider"></span>
-          <span class="ofp-toggle-label ofp-toggle-autojoin">Auto-join</span>
-        </label>
-        ` : ''}
       </div>
 
       <div class="ofp-error hidden" id="ofp-error"></div>
-      <div class="ofp-autojoin-toast hidden" id="ofp-autojoin-toast">Auto-joined! Waiting for game to start...</div>
+      <div class="ofp-autojoin-toast hidden" id="ofp-autojoin-toast">Auto-joining game...</div>
     `;
 
     const modal = document.createElement('div');
@@ -2352,10 +2331,8 @@
         }
       } else {
         await loadPresets();
-        if (isBetaFlagEnabled('autojoin')) {
-          const savedState = await chrome.storage.local.get('ofp_autojoin');
-          autoJoinEnabled = savedState.ofp_autojoin || false;
-        }
+        const savedState = await chrome.storage.local.get('ofp_autojoin');
+        autoJoinEnabled = savedState.ofp_autojoin || false;
         isMonitoring = false;
         createUI();
         uiCreated = true;
@@ -2458,13 +2435,11 @@
     await initializeMaps();
     await loadPresets();
 
-    if (isBetaFlagEnabled('autojoin')) {
-      const savedState = await chrome.storage.local.get('ofp_autojoin');
-      autoJoinEnabled = savedState.ofp_autojoin || false;
-    }
+    const savedState = await chrome.storage.local.get('ofp_autojoin');
+    autoJoinEnabled = savedState.ofp_autojoin || false;
 
     const hasActivePresets = presets.some(p => p.active);
-    isMonitoring = hasActivePresets;
+    isMonitoring = hasActivePresets && !autoJoinEnabled;
 
     createUI();
     uiCreated = true;
@@ -2472,7 +2447,6 @@
     updateAutoJoinUI();
     updateMonitoringUI();
 
-    // Show permissions modal on first launch
     const { ofp_permissions_shown } = await chrome.storage.local.get('ofp_permissions_shown');
     if (!ofp_permissions_shown) {
       showPermissionsModal();
